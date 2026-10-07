@@ -11,19 +11,31 @@ COIN_R = 7
 LIVES_START = 3
 
 
+# TASK 2: Platform colors
 def platform_color(index, total):
-    """Return an (r, g, b) colour override for the platform at this index (0 is the ground), or None for the default green."""
-    pass
+    if total <= 1:
+        return (100, 180, 100)
+
+    ratio = index / (total - 1)
+
+    r = int(100 + 120 * ratio)
+    g = int(180 - 80 * ratio)
+    b = int(100 + 120 * ratio)
+
+    return (r, g, b)
 
 
+# TASK 3: Moving platforms
 def moving_platform_speed(index, total):
-    """Return a horizontal oscillation speed in pixels/frame for the platform at this index, or None/0 to keep it static."""
-    pass
+    if index > 0 and index % 3 == 0:
+        return 1.5
+
+    return 0
 
 
+# TASK 4: Coin collection effect
 def on_coin_collected(coin, score):
-    """Called the instant the player collects a coin, after its value has been added to the score. Add a sound or sparkle here."""
-    pass
+    coin.sparkle_timer = 15
 
 
 class Platform:
@@ -36,15 +48,27 @@ class Platform:
     def update(self):
         if not self.speed:
             return 0
+
         dx = self.speed
+
         if self.rect.x <= self.bounds[0] or self.rect.x >= self.bounds[1]:
             self.speed = -self.speed
             dx = self.speed
-        self.rect.x = max(self.bounds[0], min(self.bounds[1], self.rect.x + dx))
+
+        self.rect.x = max(
+            self.bounds[0],
+            min(self.bounds[1], self.rect.x + dx)
+        )
+
         return dx
 
     def draw(self, screen, cam_y):
-        pygame.draw.rect(screen, self.color, self.rect.move(0, -cam_y), border_radius=4)
+        pygame.draw.rect(
+            screen,
+            self.color,
+            self.rect.move(0, -cam_y),
+            border_radius=4
+        )
 
 
 class Coin:
@@ -52,32 +76,108 @@ class Coin:
         self.pos = pygame.Vector2(x, y)
         self.taken = False
 
+        # TASK 4
+        self.sparkle_timer = 0
+
     def draw(self, screen, cam_y):
-        pygame.draw.circle(screen, (250, 210, 60), (self.pos.x, self.pos.y - cam_y), COIN_R)
+        x = int(self.pos.x)
+        y = int(self.pos.y - cam_y)
+
+        pygame.draw.circle(
+            screen,
+            (250, 210, 60),
+            (x, y),
+            COIN_R
+        )
+
+        # TASK 4: sparkle effect
+        if self.sparkle_timer > 0:
+            pygame.draw.line(
+                screen,
+                (255, 255, 255),
+                (x - 10, y),
+                (x + 10, y),
+                2
+            )
+
+            pygame.draw.line(
+                screen,
+                (255, 255, 255),
+                (x, y - 10),
+                (x, y + 10),
+                2
+            )
+
+            pygame.draw.line(
+                screen,
+                (255, 255, 255),
+                (x - 7, y - 7),
+                (x + 7, y + 7),
+                2
+            )
+
+            pygame.draw.line(
+                screen,
+                (255, 255, 255),
+                (x + 7, y - 7),
+                (x - 7, y + 7),
+                2
+            )
+
+            self.sparkle_timer -= 1
 
 
 def generate_platforms(num, start_y, width):
-    platforms = [Platform(0, num, 0, start_y, width, movable=False)]  # ground never moves
+    platforms = [
+        Platform(
+            0,
+            num,
+            0,
+            start_y,
+            width,
+            movable=False
+        )
+    ]
+
     y = start_y - 100
+
     for i in range(1, num + 1):
         x = random.randint(20, width - 140)
         w = random.randint(80, 160)
-        platforms.append(Platform(i, num, x, y, w))
+
+        platforms.append(
+            Platform(i, num, x, y, w)
+        )
+
         y -= random.randint(70, 120)
+
     return platforms
 
 
 def spawn_coins(platforms):
     coins = []
+
     for plat in platforms[1:]:
         if random.random() < 0.4:
-            coins.append(Coin(plat.rect.centerx, plat.rect.top - 14))
+            coins.append(
+                Coin(
+                    plat.rect.centerx,
+                    plat.rect.top - 14
+                )
+            )
+
     return coins
 
 
 class Player:
     def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y, PLAYER_W, PLAYER_H)
+        self.rect = pygame.Rect(
+            x,
+            y,
+            PLAYER_W,
+            PLAYER_H
+        )
+
         self.vel_y = 0.0
         self.vel_x = 0
         self.on_ground = False
@@ -86,25 +186,54 @@ class Player:
 
     def move(self, keys):
         self.vel_x = 0
+
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.vel_x = -MOVE_SPEED
+
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.vel_x = MOVE_SPEED
-        if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_ground:
+
+        if (
+            keys[pygame.K_SPACE]
+            or keys[pygame.K_w]
+            or keys[pygame.K_UP]
+        ) and self.on_ground:
             self.vel_y = JUMP_SPEED
             self.on_ground = False
 
     def update(self, platforms):
-        self.vel_y = min(self.vel_y + GRAVITY, 12)
+        self.vel_y = min(
+            self.vel_y + GRAVITY,
+            12
+        )
+
         previous_bottom = self.rect.bottom
-        self.rect.x = max(0, min(WIDTH - self.rect.width, self.rect.x + self.vel_x))
+
+        self.rect.x = max(
+            0,
+            min(
+                WIDTH - self.rect.width,
+                self.rect.x + self.vel_x
+            )
+        )
+
         self.rect.y += int(self.vel_y)
+
         self.on_ground = False
         self.standing_on = None
+
         if self.vel_y >= 0:
             for plat in platforms:
-                overlaps = self.rect.right > plat.rect.left and self.rect.left < plat.rect.right
-                if overlaps and previous_bottom <= plat.rect.top + 1 and self.rect.bottom >= plat.rect.top:
+                overlaps = (
+                    self.rect.right > plat.rect.left
+                    and self.rect.left < plat.rect.right
+                )
+
+                if (
+                    overlaps
+                    and previous_bottom <= plat.rect.top + 1
+                    and self.rect.bottom >= plat.rect.top
+                ):
                     self.rect.bottom = plat.rect.top
                     self.vel_y = 0
                     self.on_ground = True
@@ -112,27 +241,74 @@ class Player:
                     break
 
     def draw(self, screen, cam_y):
-        draw_rect = self.rect.move(0, -cam_y)
-        pygame.draw.rect(screen, self.color, draw_rect, border_radius=6)
-        pygame.draw.circle(screen, (255, 220, 180), (draw_rect.centerx, draw_rect.top + 10), 7)
+        draw_rect = self.rect.move(
+            0,
+            -cam_y
+        )
+
+        pygame.draw.rect(
+            screen,
+            self.color,
+            draw_rect,
+            border_radius=6
+        )
+
+        pygame.draw.circle(
+            screen,
+            (255, 220, 180),
+            (
+                draw_rect.centerx,
+                draw_rect.top + 10
+            ),
+            7
+        )
 
 
 class Game:
     def __init__(self):
-        self.font = pygame.font.Font(None, 26)
-        self.big_font = pygame.font.Font(None, 42)
+        self.font = pygame.font.Font(
+            None,
+            26
+        )
+
+        self.big_font = pygame.font.Font(
+            None,
+            42
+        )
+
         self.reset()
 
     def reset(self):
-        self.platforms = generate_platforms(60, HEIGHT - 40, WIDTH)
-        self.coins = spawn_coins(self.platforms)
-        self.player = Player(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 100)
+        self.platforms = generate_platforms(
+            60,
+            HEIGHT - 40,
+            WIDTH
+        )
+
+        self.coins = spawn_coins(
+            self.platforms
+        )
+
+        self.player = Player(
+            WIDTH // 2 - PLAYER_W // 2,
+            HEIGHT - 100
+        )
+
         self.cam_y = 0
+
         self.height = 0
+
         self.coin_score = 0
+
         self.lives = LIVES_START
-        self.last_safe = pygame.Vector2(self.player.rect.x, self.player.rect.y)
+
+        self.last_safe = pygame.Vector2(
+            self.player.rect.x,
+            self.player.rect.y
+        )
+
         self.state = "play"
+
         self.top_y = self.platforms[-1].rect.y
 
     def score(self):
@@ -141,36 +317,83 @@ class Game:
     def update(self, keys):
         if self.state != "play":
             return
+
         self.player.move(keys)
+
         for plat in self.platforms:
             dx = plat.update()
+
             if dx and self.player.standing_on is plat:
                 self.player.rect.x += dx
-        self.player.update(self.platforms)
 
-        target_cam = self.player.rect.centery - HEIGHT // 2
+        self.player.update(
+            self.platforms
+        )
+
+        target_cam = (
+            self.player.rect.centery
+            - HEIGHT // 2
+        )
+
         if target_cam < self.cam_y:
             self.cam_y = target_cam
 
-        current_height = max(0, (HEIGHT - 40 - self.player.rect.y) // 10)
-        self.height = current_height
+        # TASK 1: Height never decreases
+        current_height = max(
+            0,
+            (HEIGHT - 40 - self.player.rect.y) // 10
+        )
+
+        self.height = max(
+            self.height,
+            current_height
+        )
 
         if self.player.on_ground:
-            self.last_safe = pygame.Vector2(self.player.rect.x, self.player.rect.y)
+            self.last_safe = pygame.Vector2(
+                self.player.rect.x,
+                self.player.rect.y
+            )
 
         for coin in self.coins:
-            if not coin.taken and self.player.rect.collidepoint(coin.pos):
+            if (
+                not coin.taken
+                and self.player.rect.collidepoint(
+                    coin.pos
+                )
+            ):
                 coin.taken = True
-                self.coin_score += 50
-                on_coin_collected(coin, self.score())
-        self.coins = [c for c in self.coins if not c.taken]
 
-        if self.player.rect.top - self.cam_y > HEIGHT + 50:
+                self.coin_score += 50
+
+                on_coin_collected(
+                    coin,
+                    self.score()
+                )
+
+        self.coins = [
+            c for c in self.coins
+            if not c.taken
+        ]
+
+        if (
+            self.player.rect.top - self.cam_y
+            > HEIGHT + 50
+        ):
             self.lives -= 1
+
             if self.lives <= 0:
                 self.state = "lose"
+
             else:
-                self.player.rect.x, self.player.rect.y = int(self.last_safe.x), int(self.last_safe.y)
+                self.player.rect.x = int(
+                    self.last_safe.x
+                )
+
+                self.player.rect.y = int(
+                    self.last_safe.y
+                )
+
                 self.player.vel_y = 0
 
         if self.player.rect.y <= self.top_y:
@@ -178,41 +401,121 @@ class Game:
 
     def draw(self, screen):
         screen.fill(BG)
-        for plat in self.platforms:
-            plat.draw(screen, self.cam_y)
-        for coin in self.coins:
-            coin.draw(screen, self.cam_y)
-        self.player.draw(screen, self.cam_y)
 
-        hud = self.font.render(f"Height: {self.height}m  Coins: {self.coin_score // 50}  Lives: {self.lives}", True, (200, 200, 200))
-        screen.blit(hud, (10, 10))
+        for plat in self.platforms:
+            plat.draw(
+                screen,
+                self.cam_y
+            )
+
+        for coin in self.coins:
+            coin.draw(
+                screen,
+                self.cam_y
+            )
+
+        self.player.draw(
+            screen,
+            self.cam_y
+        )
+
+        hud = self.font.render(
+            f"Height: {self.height}m  "
+            f"Coins: {self.coin_score // 50}  "
+            f"Lives: {self.lives}",
+            True,
+            (200, 200, 200)
+        )
+
+        screen.blit(
+            hud,
+            (10, 10)
+        )
 
         if self.state != "play":
-            text = "YOU REACHED THE TOP!" if self.state == "win" else "YOU FELL!"
-            color = (80, 220, 80) if self.state == "win" else (220, 60, 60)
-            msg = self.big_font.render(text, True, color)
-            sub = self.font.render("Press R to Restart", True, (180, 180, 180))
-            screen.blit(msg, msg.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 20)))
-            screen.blit(sub, sub.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30)))
+            text = (
+                "YOU REACHED THE TOP!"
+                if self.state == "win"
+                else "YOU FELL!"
+            )
+
+            color = (
+                (80, 220, 80)
+                if self.state == "win"
+                else (220, 60, 60)
+            )
+
+            msg = self.big_font.render(
+                text,
+                True,
+                color
+            )
+
+            sub = self.font.render(
+                "Press R to Restart",
+                True,
+                (180, 180, 180)
+            )
+
+            screen.blit(
+                msg,
+                msg.get_rect(
+                    center=(
+                        WIDTH // 2,
+                        HEIGHT // 2 - 20
+                    )
+                )
+            )
+
+            screen.blit(
+                sub,
+                sub.get_rect(
+                    center=(
+                        WIDTH // 2,
+                        HEIGHT // 2 + 30
+                    )
+                )
+            )
 
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Climber")
+
+    screen = pygame.display.set_mode(
+        (WIDTH, HEIGHT)
+    )
+
+    pygame.display.set_caption(
+        "Climber"
+    )
+
     clock = pygame.time.Clock()
+
     game = Game()
+
     running = True
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+
+            elif (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_r
+            ):
                 game.reset()
-        game.update(pygame.key.get_pressed())
+
+        game.update(
+            pygame.key.get_pressed()
+        )
+
         game.draw(screen)
+
         pygame.display.flip()
+
         clock.tick(FPS)
+
     pygame.quit()
 
 
